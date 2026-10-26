@@ -1,0 +1,44 @@
+<%- include('../partials/head') %>
+<div class="toolbar">
+  <form method="get" class="inline">
+    <select name="status" onchange="this.form.submit()" aria-label="Filter status">
+      <option value="">Semua status</option>
+      <% Object.entries(STATUS_LABEL).forEach(function ([k, v]) { %><option value="<%= k %>" <%= status === k ? 'selected' : '' %>><%= v[0] %> (<%= counts[k] || 0 %>)</option><% }) %>
+    </select>
+  </form>
+  <span class="spacer"></span>
+  <% if (can('gudang')) { %>
+    <form method="post" action="/purchases/reorder" class="inline" data-confirm="Buat PO draf otomatis untuk semua barang yang stoknya menipis?">
+      <button class="btn btn-ghost"><%- icon('truck') %>PO otomatis dari stok menipis</button>
+    </form>
+    <a class="btn" href="/purchases/new"><%- icon('plus') %>Buat PO</a>
+  <% } %>
+</div>
+
+<div class="alert alert-info">Alur pembelian: <strong>Draf</strong> → <strong>Dipesan</strong> (dikirim ke supplier) → <strong>Diterima</strong> (stok masuk + hutang tercatat) → <strong>Dibayar</strong> (kas berkurang, hutang lunas).</div>
+
+<div class="card">
+  <div class="table-wrap"><table>
+    <thead><tr><th>No. PO</th><th>Tanggal</th><th>Supplier</th><th class="num">Item</th><th class="num">Total</th><th>Status</th><th>Pembayaran</th><th>Jatuh tempo</th></tr></thead>
+    <tbody>
+    <% if (!rows.length) { %><tr><td colspan="8" class="empty">Belum ada purchase order.</td></tr><% } %>
+    <% rows.forEach(function (p) { const rem = p.total - p.paid; %>
+      <tr>
+        <td><a href="/purchases/<%= p.id %>"><%= p.code %></a></td>
+        <td><%= tgl(p.order_date) %></td>
+        <td><%= p.supplier_name %></td>
+        <td class="num"><%= p.items %></td>
+        <td class="num"><%= rp(p.total) %></td>
+        <td><span class="badge badge-<%= STATUS_LABEL[p.status][1] %>"><%= STATUS_LABEL[p.status][0] %></span></td>
+        <td>
+          <% if (p.status !== 'diterima') { %>-
+          <% } else if (rem <= 0) { %><span class="badge badge-success">Lunas</span>
+          <% } else { %><span class="badge badge-warning">Sisa <%= rp(rem) %></span><% } %>
+        </td>
+        <td><%= p.status === 'diterima' && rem > 0 ? tgl(p.due_date) : '-' %><% if (p.status === 'diterima' && rem > 0 && p.due_date < today) { %> <span class="badge badge-danger">Terlambat</span><% } %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+</div>
+<%- include('../partials/foot') %>

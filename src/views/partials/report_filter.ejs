@@ -1,0 +1,11 @@
+<form method="get" class="toolbar">
+  <% if (typeof asOf !== 'undefined') { %>
+    <div class="field"><label for="date">Per tanggal</label><input id="date" type="date" name="date" value="<%= asOf %>"></div>
+  <% } else { %>
+    <div class="field"><label for="from">Dari</label><input id="from" type="date" name="from" value="<%= from %>"></div>
+    <div class="field"><label for="to">Sampai</label><input id="to" type="date" name="to" value="<%= to %>"></div>
+  <% } %>
+  <button class="btn btn-ghost">Tampilkan</button>
+  <span class="spacer"></span>
+  <button type="button" class="btn btn-ghost" data-print><%- icon('print') %>Cetak / simpan PDF</button>
+</form>

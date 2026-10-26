@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Masuk · KelolaToko</title>
+  <link rel="stylesheet" href="/vendor/font/index.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<main class="login-page">
+  <div class="login-card">
+    <div class="brand">
+      <%- include('partials/mark') %>
+      <div><strong>KelolaToko</strong><small>AMART</small></div>
+    </div>
+    <h1>Masuk ke sistem</h1>
+    <p class="lede">Gunakan akun sesuai peran Anda di toko.</p>
+    <% if (error) { %><div class="alert alert-error" role="alert"><%= error %></div><% } %>
+    <% if (flash) { %><div class="alert alert-<%= flash.type %>"><%= flash.msg %></div><% } %>
+    <form method="post" action="/login" novalidate>
+      <div class="field">
+        <label for="username">Nama pengguna</label>
+        <input id="username" name="username" value="<%= username || '' %>" autocomplete="username" autofocus required>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label for="password">Kata sandi</label>
+        <input id="password" type="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-block btn-lg" style="margin-top:20px">Masuk</button>
+    </form>
+  </div>
+</main>
+<script>
+  document.querySelector('form').addEventListener('submit', (e) => {
+    const b = e.target.querySelector('button'); b.disabled = true; b.textContent = 'Memeriksa...';
+  });
+</script>
+</body>
+</html>

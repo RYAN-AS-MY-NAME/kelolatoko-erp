@@ -1,0 +1,61 @@
+<%- include('../partials/head') %>
+<div class="toolbar">
+  <a class="btn btn-ghost" href="/inventory">← Stok barang</a>
+  <span class="spacer"></span>
+  <% if (can('gudang')) { %>
+    <a class="btn btn-ghost" href="/inventory/opname?product=<%= product.id %>"><%- icon('check') %>Opname produk ini</a>
+    <a class="btn btn-ghost" href="/master/products/<%= product.id %>/edit"><%- icon('edit') %>Ubah produk</a>
+  <% } %>
+</div>
+
+<div class="kpis">
+  <div class="kpi accent"><div class="label"><%= product.sku %></div><div class="value" style="font-size:17px"><%= product.name %></div><div class="sub"><%= product.category %> · <%= product.supplier || 'tanpa supplier' %></div></div>
+  <div class="kpi"><div class="label">Stok saat ini</div><div class="value"><%= num(product.stock) %> <%= product.unit %></div><div class="sub"><span class="badge badge-<%= STATUS_LABEL[product.status][1] %>"><%= STATUS_LABEL[product.status][0] %></span> min <%= product.min_stock %></div></div>
+  <div class="kpi"><div class="label">Harga beli / jual</div><div class="value" style="font-size:17px"><%= rp(product.buy_price) %> / <%= rp(product.sell_price) %></div><div class="sub">Nilai stok <%= rp(product.value) %></div></div>
+  <div class="kpi"><div class="label">Terjual 30 hari</div><div class="value"><%= num(product.sold_30) %></div><div class="sub">Terakhir laku: <%= product.last_sale ? tgl(product.last_sale) : 'belum pernah' %></div></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Batch tersedia (urutan FEFO: yang lebih dulu kedaluwarsa dijual lebih dulu)</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Batch</th><th>Asal</th><th>Diterima</th><th>Kedaluwarsa</th><th class="num">Sisa / Masuk</th><th class="num">Harga modal</th></tr></thead>
+    <tbody>
+    <% if (!batches.length) { %><tr><td colspan="6" class="empty">Stok kosong.</td></tr><% } %>
+    <% batches.forEach(function (b) { %>
+      <tr>
+        <td>#<%= b.id %></td>
+        <td><% if (b.po_code) { %><a href="/purchases/<%= b.purchase_id %>"><%= b.po_code %></a><% } else { %>Penyesuaian<% } %></td>
+        <td><%= tgl(b.received_date) %></td>
+        <td><%= b.expiry_date ? tgl(b.expiry_date) : '-' %><% if (b.expiry_date && b.expiry_date < today) { %> <span class="badge badge-danger">Kedaluwarsa</span><% } %></td>
+        <td class="num"><%= b.qty_remaining %> / <%= b.qty_in %></td>
+        <td class="num"><%= rp(b.unit_cost) %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Kartu stok (riwayat mutasi)</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tanggal</th><th>Jenis</th><th>Referensi</th><th class="num">Masuk</th><th class="num">Keluar</th><th class="num">Saldo</th><th>Oleh</th></tr></thead>
+    <tbody>
+    <% moves.slice(0, 200).forEach(function (m) { %>
+      <tr>
+        <td><%= tgl(m.date) %></td>
+        <td><%= MOVE_LABEL[m.type] || m.type %></td>
+        <td>
+          <% if (m.ref_type === 'sale' || m.ref_type === 'sale_void') { %><a href="/sales/<%= m.ref_id %>"><%= m.note %></a>
+          <% } else if (m.ref_type === 'purchase') { %><a href="/purchases/<%= m.ref_id %>"><%= m.note %></a>
+          <% } else { %><%= m.note || '-' %><% } %>
+        </td>
+        <td class="num text-success"><%= m.qty > 0 ? m.qty : '' %></td>
+        <td class="num text-danger"><%= m.qty < 0 ? -m.qty : '' %></td>
+        <td class="num fw"><%= m.saldo %></td>
+        <td><%= m.user_name || '-' %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+</div>
+<%- include('../partials/foot') %>

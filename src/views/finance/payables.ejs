@@ -1,0 +1,35 @@
+<%- include('../partials/head') %>
+<div class="kpis">
+  <div class="kpi warn"><div class="label">Total hutang ke supplier</div><div class="value"><%= rp(total) %></div><div class="sub"><%= rows.length %> PO belum lunas</div></div>
+  <% const overdue = rows.filter(r => r.overdue > 0).reduce((s, r) => s + r.remaining, 0); %>
+  <div class="kpi <%= overdue ? 'bad' : '' %>"><div class="label">Sudah lewat jatuh tempo</div><div class="value"><%= rp(overdue) %></div></div>
+  <div class="kpi accent"><div class="label">Saldo kas</div><div class="value"><%= rp(cash) %></div><div class="sub"><%= cash >= total ? 'Cukup untuk melunasi semua' : 'Belum cukup untuk melunasi semua' %></div></div>
+</div>
+<div class="card">
+  <div class="table-wrap"><table>
+    <thead><tr><th>No. PO</th><th>Supplier</th><th>Diterima</th><th>Jatuh tempo</th><th class="num">Total</th><th class="num">Sisa</th><th>Bayar</th></tr></thead>
+    <tbody>
+    <% if (!rows.length) { %><tr><td colspan="7" class="empty">Tidak ada hutang. Semua PO sudah lunas.</td></tr><% } %>
+    <% rows.forEach(function (p) { %>
+      <tr>
+        <td><a href="/purchases/<%= p.id %>"><%= p.code %></a></td>
+        <td><%= p.supplier_name %></td>
+        <td><%= tgl(p.received_date) %></td>
+        <td class="nw"><%= tgl(p.due_date) %>
+          <% if (p.overdue > 0) { %><span class="badge badge-danger">Terlambat <%= p.overdue %> hari</span>
+          <% } else if (p.overdue >= -7) { %><span class="badge badge-warning"><%= -p.overdue %> hari lagi</span><% } %></td>
+        <td class="num"><%= rp(p.total) %></td>
+        <td class="num fw"><%= rp(p.remaining) %></td>
+        <td>
+          <form method="post" action="/purchases/<%= p.id %>/pay" style="display:flex;gap:6px" data-confirm="Bayar hutang <%= p.code %>?">
+            <input type="hidden" name="back" value="/finance/payables">
+            <input type="number" name="amount" value="<%= p.remaining %>" min="1" max="<%= p.remaining %>" style="width:120px" aria-label="Jumlah bayar">
+            <button class="btn btn-sm">Bayar</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+</div>
+<%- include('../partials/foot') %>

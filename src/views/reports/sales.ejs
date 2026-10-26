@@ -1,0 +1,46 @@
+<%- include('../partials/head') %>
+<%- include('../partials/report_filter') %>
+<%
+  const tot = daily.reduce((s, d) => ({ n: s.n + d.n, total: s.total + d.total, cogs: s.cogs + d.cogs, kredit: s.kredit + d.kredit }), { n: 0, total: 0, cogs: 0, kredit: 0 });
+%>
+<div class="kpis">
+  <div class="kpi accent"><div class="label">Total penjualan</div><div class="value"><%= rp(tot.total) %></div><div class="sub"><%= num(tot.n) %> transaksi</div></div>
+  <div class="kpi"><div class="label">Laba kotor</div><div class="value"><%= rp(tot.total - tot.cogs) %></div><div class="sub">margin <%= tot.total ? ((tot.total - tot.cogs) / tot.total * 100).toFixed(1).replace('.', ',') : 0 %>%</div></div>
+  <div class="kpi"><div class="label">Penjualan bon</div><div class="value"><%= rp(tot.kredit) %></div><div class="sub"><%= tot.total ? Math.round(tot.kredit / tot.total * 100) : 0 %>% dari penjualan</div></div>
+  <div class="kpi"><div class="label">Rata-rata per hari</div><div class="value"><%= rp(daily.length ? tot.total / daily.length : 0) %></div></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Penjualan per produk</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Produk</th><th>Kategori</th><th class="num">Terjual</th><th class="num">Omzet</th><th class="num">HPP</th><th class="num">Laba kotor</th><th class="num">Margin</th></tr></thead>
+    <tbody>
+    <% if (!byProduct.length) { %><tr><td colspan="8" class="empty">Tidak ada penjualan.</td></tr><% } %>
+    <% byProduct.forEach(function (p, i) { const gp = p.omzet - p.cogs; %>
+      <tr><td><%= i + 1 %></td><td><%= p.name %></td><td><%= p.category %></td><td class="num"><%= num(p.qty) %></td><td class="num"><%= rp(p.omzet) %></td><td class="num"><%= rp(p.cogs) %></td><td class="num"><%= rp(gp) %></td><td class="num"><%= p.omzet ? (gp / p.omzet * 100).toFixed(1).replace('.', ',') : 0 %>%</td></tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+</div>
+
+<div class="grid grid-side">
+  <div class="card">
+    <div class="card-header"><h2>Penjualan harian</h2></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tanggal</th><th class="num">Transaksi</th><th class="num">Penjualan</th><th class="num">Diskon</th><th class="num">Laba kotor</th></tr></thead>
+      <tbody>
+      <% daily.slice().reverse().forEach(function (d) { %>
+        <tr><td><%= tgl(d.date) %></td><td class="num"><%= d.n %></td><td class="num"><%= rp(d.total) %></td><td class="num"><%= rp(d.discount) %></td><td class="num"><%= rp(d.total - d.cogs) %></td></tr>
+      <% }) %>
+      </tbody>
+      <tfoot><tr><td>Total</td><td class="num"><%= num(tot.n) %></td><td class="num"><%= rp(tot.total) %></td><td></td><td class="num"><%= rp(tot.total - tot.cogs) %></td></tr></tfoot>
+    </table></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h2>Per kasir</h2></div>
+    <ul class="list">
+      <% byCashier.forEach(function (c) { %><li><span><%= c.name %><br><small><%= num(c.n) %> transaksi</small></span><strong><%= rp(c.total) %></strong></li><% }) %>
+    </ul>
+  </div>
+</div>
+<%- include('../partials/foot') %>

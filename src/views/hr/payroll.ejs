@@ -1,0 +1,50 @@
+<%- include('../partials/head') %>
+<form method="get" class="toolbar">
+  <div class="field"><label for="period">Periode</label><input id="period" type="month" name="period" value="<%= period %>" onchange="this.form.submit()"></div>
+  <span class="spacer"></span>
+  <button type="button" class="btn btn-ghost" data-print><%- icon('print') %>Cetak</button>
+</form>
+
+<div class="alert alert-info">Gaji = gaji pokok + (hari hadir × uang makan) − (hari alpa × gaji pokok/<%= WORK_DAYS %>). Data hadir diambil otomatis dari menu Absensi.</div>
+
+<div class="card">
+  <div class="card-header"><h2>Daftar gaji <%= bulan(period) %></h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Karyawan</th><th class="num">Gaji pokok</th><th class="num">Hadir</th><th class="num">Uang makan</th><th class="num">Alpa</th><th class="num">Potongan</th><th class="num">Diterima</th><th>Status</th></tr></thead>
+    <tbody>
+    <% rows.forEach(function (r) { %>
+      <tr>
+        <td><strong><%= r.name %></strong><br><small><%= r.position %></small></td>
+        <td class="num"><%= rp(r.base_salary) %></td>
+        <td class="num"><%= r.hadir %></td>
+        <td class="num"><%= rp(r.allowance) %></td>
+        <td class="num"><%= r.alpa %></td>
+        <td class="num text-danger"><%= r.deduction ? '−' + rp(r.deduction) : '-' %></td>
+        <td class="num fw"><%= rp(r.payroll_id ? r.paid_net : r.net) %></td>
+        <td><% if (r.payroll_id) { %><span class="badge badge-success">Dibayar <%= tgl(r.paid_date) %></span><% } else { %><span class="badge badge-warning">Belum dibayar</span><% } %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+  <% if (unpaidTotal > 0) { %>
+  <div class="card-body no-print" style="border-top:1px solid var(--border)">
+    <form method="post" action="/hr/payroll" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end" data-confirm="Bayar gaji <%= bulan(period) %> sebesar <%= rp(unpaidTotal) %>? Saldo kas akan berkurang.">
+      <input type="hidden" name="period" value="<%= period %>">
+      <div class="field"><label for="pdate">Tanggal bayar</label><input id="pdate" type="date" name="date" value="<%= today %>"></div>
+      <button class="btn"><%- icon('cash') %>Bayar gaji (<%= rp(unpaidTotal) %>)</button>
+    </form>
+  </div>
+  <% } %>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Riwayat penggajian</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Periode</th><th class="num">Karyawan</th><th class="num">Total</th><th>Dibayar</th></tr></thead>
+    <tbody>
+    <% if (!history.length) { %><tr><td colspan="4" class="empty">Belum ada.</td></tr><% } %>
+    <% history.forEach(function (h) { %><tr><td><a href="/hr/payroll?period=<%= h.period %>"><%= bulan(h.period) %></a></td><td class="num"><%= h.n %></td><td class="num"><%= rp(h.total) %></td><td><%= tgl(h.paid_date) %></td></tr><% }) %>
+    </tbody>
+  </table></div>
+</div>
+<%- include('../partials/foot') %>

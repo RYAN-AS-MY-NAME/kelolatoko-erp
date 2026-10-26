@@ -1,0 +1,86 @@
+<%- include('../partials/head') %>
+<div class="alert alert-info">Barang kedaluwarsa otomatis <strong>tidak bisa dijual</strong> di kasir. Hapus dari stok agar stok sistem sesuai fisik; nilai kerugiannya langsung tercatat sebagai beban di laporan laba rugi.</div>
+
+<div class="toolbar">
+  <form method="get" class="inline" style="display:flex;gap:8px;align-items:center">
+    <label for="days" class="muted">Tampilkan yang kedaluwarsa dalam</label>
+    <select id="days" name="days" onchange="this.form.submit()">
+      <% [7, 30, 60, 90, 180].forEach(function (d) { %><option value="<%= d %>" <%= days === d ? 'selected' : '' %>><%= d %> hari</option><% }) %>
+    </select>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Kedaluwarsa / mendekati kedaluwarsa</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Produk</th><th>Batch</th><th>Kedaluwarsa</th><th class="num">Sisa</th><th class="num">Nilai</th><th>Hapus</th></tr></thead>
+    <tbody>
+    <% if (!batches.length) { %><tr><td colspan="6" class="empty">Tidak ada batch yang kedaluwarsa dalam <%= days %> hari.</td></tr><% } %>
+    <% batches.forEach(function (b) { %>
+      <tr>
+        <td><a href="/inventory/card/<%= b.product_id %>"><%= b.name %></a></td>
+        <td>#<%= b.id %></td>
+        <td><%= tgl(b.expiry_date) %>
+          <% if (b.daysToExpiry < 0) { %><span class="badge badge-danger">Lewat <%= -b.daysToExpiry %> hari</span>
+          <% } else if (b.daysToExpiry <= 7) { %><span class="badge badge-warning"><%= b.daysToExpiry %> hari lagi</span>
+          <% } else { %><span class="badge badge-info"><%= b.daysToExpiry %> hari lagi</span><% } %>
+        </td>
+        <td class="num"><%= b.qty_remaining %> <%= b.unit %></td>
+        <td class="num"><%= rp(b.value) %></td>
+        <td>
+          <form method="post" action="/inventory/batches/<%= b.id %>/writeoff" style="display:flex;gap:6px" data-confirm="Hapus barang ini dari stok? Stok akan berkurang dan dicatat sebagai kerugian.">
+            <input type="number" name="qty" value="<%= b.qty_remaining %>" min="1" max="<%= b.qty_remaining %>" style="width:80px" aria-label="Jumlah">
+            <input type="hidden" name="reason" value="<%= b.daysToExpiry < 0 ? 'Kedaluwarsa' : 'Mendekati kedaluwarsa' %>">
+            <button class="btn btn-sm btn-danger">Hapus</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-header"><h2>Catat barang rusak / hilang</h2></div>
+    <div class="card-body">
+      <form method="post" id="damageForm" data-confirm="Catat barang rusak ini? Stok akan berkurang.">
+        <div class="form-grid">
+          <div class="field" style="grid-column:1/-1">
+            <label for="batch">Batch produk <span class="req">*</span></label>
+            <select id="batch" required>
+              <option value="">— Pilih batch —</option>
+              <% allBatches.forEach(function (b) { %><option value="<%= b.id %>"><%= b.name %> · batch #<%= b.id %> · sisa <%= b.qty_remaining %> <%= b.unit %><%= b.expiry_date ? ' · exp ' + tgl(b.expiry_date) : '' %></option><% }) %>
+            </select>
+          </div>
+          <div class="field"><label for="dqty">Jumlah <span class="req">*</span></label><input id="dqty" type="number" name="qty" min="1" value="1" required></div>
+          <div class="field"><label for="reason">Alasan <span class="req">*</span></label>
+            <select id="reason" name="reason"><option>Rusak / kemasan bocor</option><option>Hilang</option><option>Dimakan hama</option><option>Kedaluwarsa</option></select>
+          </div>
+        </div>
+        <div class="form-actions"><button class="btn btn-danger">Catat kerugian</button></div>
+      </form>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h2>Riwayat barang dihapus</h2></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tanggal</th><th>Produk</th><th class="num">Jumlah</th><th class="num">Kerugian</th><th>Alasan</th></tr></thead>
+      <tbody>
+      <% if (!history.length) { %><tr><td colspan="5" class="empty">Belum ada.</td></tr><% } %>
+      <% history.forEach(function (h) { %>
+        <tr><td><%= tgl(h.date) %></td><td><%= h.name %></td><td class="num"><%= -h.qty %> <%= h.unit %></td><td class="num text-danger"><%= rp(-h.qty * h.unit_cost) %></td><td><%= h.note %></td></tr>
+      <% }) %>
+      </tbody>
+    </table></div>
+  </div>
+</div>
+<script>
+  const form = document.getElementById('damageForm');
+  form.addEventListener('submit', (e) => {
+    const id = document.getElementById('batch').value;
+    if (!id) { e.preventDefault(); alert('Pilih batch terlebih dahulu.'); return; }
+    form.action = '/inventory/batches/' + id + '/writeoff';
+  }, true);
+</script>
+<%- include('../partials/foot') %>

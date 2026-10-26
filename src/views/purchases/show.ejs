@@ -1,0 +1,88 @@
+<%- include('../partials/head') %>
+<% const rem = po.total - po.paid; %>
+<div class="toolbar">
+  <a class="btn btn-ghost" href="/purchases">← Daftar PO</a>
+  <span class="spacer"></span>
+  <button class="btn btn-ghost" data-print><%- icon('print') %>Cetak</button>
+  <% if (can('gudang') && po.status === 'draf') { %>
+    <form method="post" action="/purchases/<%= po.id %>/approve" class="inline"><button class="btn">Kirim ke supplier</button></form>
+  <% } %>
+  <% if (can('gudang') && (po.status === 'draf' || po.status === 'dipesan')) { %>
+    <form method="post" action="/purchases/<%= po.id %>/cancel" class="inline" data-confirm="Batalkan PO ini?"><button class="btn btn-danger">Batalkan PO</button></form>
+  <% } %>
+</div>
+
+<div class="kpis">
+  <div class="kpi accent"><div class="label">No. PO</div><div class="value" style="font-size:17px"><%= po.code %></div><div class="sub"><span class="badge badge-<%= STATUS_LABEL[po.status][1] %>"><%= STATUS_LABEL[po.status][0] %></span></div></div>
+  <div class="kpi"><div class="label">Supplier</div><div class="value" style="font-size:16px"><%= po.supplier_name %></div><div class="sub"><%= po.supplier_phone || '' %></div></div>
+  <div class="kpi"><div class="label">Tanggal</div><div class="value" style="font-size:16px"><%= tgl(po.order_date) %></div><div class="sub">Diterima: <%= tgl(po.received_date) %> · Jatuh tempo: <%= tgl(po.due_date) %></div></div>
+  <div class="kpi <%= po.status === 'diterima' && rem > 0 ? 'warn' : '' %>"><div class="label">Total / Sisa hutang</div><div class="value" style="font-size:17px"><%= rp(po.total) %></div><div class="sub">Dibayar <%= rp(po.paid) %> · Sisa <%= rp(rem) %></div></div>
+</div>
+
+<% if (po.status === 'dipesan' && can('gudang')) { %>
+<form method="post" action="/purchases/<%= po.id %>/receive" data-confirm="Konfirmasi barang sudah diterima? Stok akan bertambah dan hutang tercatat.">
+<% } %>
+<div class="card">
+  <div class="card-header"><h2>Rincian barang</h2><% if (po.note) { %><small><%= po.note %></small><% } %></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Produk</th><th class="num">Jumlah</th><th class="num">Harga</th><th class="num">Subtotal</th><th>Kedaluwarsa</th></tr></thead>
+    <tbody>
+    <% po.items.forEach(function (it) { %>
+      <tr>
+        <td><%= it.name %><br><small><%= it.sku %></small></td>
+        <td class="num"><%= it.qty %> <%= it.unit %></td>
+        <td class="num"><%= rp(it.unit_cost) %></td>
+        <td class="num"><%= rp(it.qty * it.unit_cost) %></td>
+        <td>
+          <% if (po.status === 'dipesan' && can('gudang')) { %>
+            <input type="date" name="expiry_<%= it.id %>" value="<%= it.expiry_date || '' %>" aria-label="Kedaluwarsa <%= it.name %>">
+          <% } else { %><%= it.expiry_date ? tgl(it.expiry_date) : '-' %><% } %>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+    <tfoot><tr><td colspan="3" class="num">Total</td><td class="num"><%= rp(po.total) %></td><td></td></tr></tfoot>
+  </table></div>
+  <% if (po.status === 'dipesan' && can('gudang')) { %>
+  <div class="card-body" style="border-top:1px solid var(--border)">
+    <h3>Penerimaan barang</h3>
+    <p class="muted" style="margin:4px 0 12px">Cek fisik barang dan isi tanggal kedaluwarsa dari kemasan. Barang yang kedaluwarsanya sudah lewat akan ditolak sistem.</p>
+    <div class="form-grid">
+      <div class="field"><label for="rdate">Tanggal terima</label><input id="rdate" type="date" name="date" value="<%= today %>"></div>
+      <div class="field"><label for="pay">Dibayar tunai saat terima (Rp)</label><input id="pay" type="number" min="0" name="pay_amount" value="0"><span class="hint">0 = bayar nanti (tercatat sebagai hutang)</span></div>
+    </div>
+    <div class="form-actions"><button class="btn"><%- icon('check') %>Terima barang</button></div>
+  </div>
+  <% } %>
+</div>
+<% if (po.status === 'dipesan' && can('gudang')) { %></form><% } %>
+
+<% if (po.status === 'diterima') { %>
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-header"><h2>Riwayat pembayaran</h2></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tanggal</th><th class="num">Jumlah</th><th>Catatan</th><th>Oleh</th></tr></thead>
+      <tbody>
+      <% if (!po.payments.length) { %><tr><td colspan="4" class="empty">Belum ada pembayaran.</td></tr><% } %>
+      <% po.payments.forEach(function (p) { %><tr><td><%= tgl(p.date) %></td><td class="num"><%= rp(p.amount) %></td><td><%= p.note || '-' %></td><td><%= p.user_name %></td></tr><% }) %>
+      </tbody>
+    </table></div>
+  </div>
+  <% if (rem > 0 && can('keuangan')) { %>
+  <div class="card">
+    <div class="card-header"><h2>Bayar hutang ke supplier</h2></div>
+    <div class="card-body">
+      <form method="post" action="/purchases/<%= po.id %>/pay" data-confirm="Catat pembayaran ini? Saldo kas akan berkurang.">
+        <div class="form-grid">
+          <div class="field"><label for="amt">Jumlah (Rp)</label><input id="amt" type="number" name="amount" min="1" max="<%= rem %>" value="<%= rem %>"></div>
+          <div class="field"><label for="pdate">Tanggal</label><input id="pdate" type="date" name="date" value="<%= today %>"></div>
+        </div>
+        <div class="form-actions"><button class="btn">Bayar</button></div>
+      </form>
+    </div>
+  </div>
+  <% } %>
+</div>
+<% } %>
+<%- include('../partials/foot') %>

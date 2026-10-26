@@ -1,0 +1,88 @@
+<%- include('../partials/head') %>
+<form method="post" action="/purchases" id="poForm" novalidate>
+  <div class="card">
+    <div class="card-header"><h2>Data pesanan</h2></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="supplier">Supplier <span class="req">*</span></label>
+          <select id="supplier" name="supplier_id" required>
+            <option value="">— Pilih supplier —</option>
+            <% suppliers.forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %></option><% }) %>
+          </select>
+        </div>
+        <div class="field"><label for="od">Tanggal pesan <span class="req">*</span></label><input id="od" type="date" name="order_date" value="<%= defaults.order_date %>" required></div>
+        <div class="field"><label for="dd">Jatuh tempo pembayaran</label><input id="dd" type="date" name="due_date" value="<%= defaults.due_date %>"></div>
+        <div class="field"><label for="note">Catatan</label><input id="note" name="note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>Barang yang dipesan</h2>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn btn-sm btn-ghost" id="fillSupplier">Isi produk supplier ini</button>
+        <button type="button" class="btn btn-sm" id="addRow"><%- icon('plus') %>Tambah baris</button>
+      </div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th style="min-width:220px">Produk</th><th class="num">Jumlah</th><th class="num">Harga beli / satuan</th><th>Kedaluwarsa (opsional)</th><th class="num">Subtotal</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+      <tfoot><tr><td colspan="4" class="num">Total</td><td class="num" id="grand">Rp 0</td><td></td></tr></tfoot>
+    </table></div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn" name="as_draft" value="">Simpan &amp; kirim ke supplier</button>
+    <button class="btn btn-ghost" name="as_draft" value="1">Simpan sebagai draf</button>
+    <a class="btn btn-ghost" href="/purchases">Batal</a>
+  </div>
+</form>
+
+<template id="rowTpl">
+  <tr>
+    <td><select name="product_id[]" class="prod" required><option value="">— Pilih —</option>
+      <% products.forEach(function (p) { %><option value="<%= p.id %>" data-cost="<%= p.buy_price %>" data-supplier="<%= p.supplier_id %>"><%= p.name %> (<%= p.unit %>)</option><% }) %>
+    </select></td>
+    <td class="num"><input type="number" name="qty[]" class="qty-in" min="1" value="1" style="width:90px"></td>
+    <td class="num"><input type="number" name="unit_cost[]" class="cost" min="0" value="0" style="width:130px"></td>
+    <td><input type="date" name="expiry_date[]"></td>
+    <td class="num sub">Rp 0</td>
+    <td><button type="button" class="btn btn-sm btn-ghost del" title="Hapus baris"><%- icon('x') %></button></td>
+  </tr>
+</template>
+
+<script>
+  const rows = document.getElementById('rows'), tpl = document.getElementById('rowTpl');
+  function addRow(pid, qty) {
+    const tr = tpl.content.firstElementChild.cloneNode(true);
+    rows.appendChild(tr);
+    if (pid) { tr.querySelector('.prod').value = pid; tr.querySelector('.cost').value = tr.querySelector('.prod').selectedOptions[0].dataset.cost; }
+    if (qty) tr.querySelector('.qty-in').value = qty;
+    recalc();
+  }
+  function recalc() {
+    let total = 0;
+    rows.querySelectorAll('tr').forEach((tr) => {
+      const sub = (Number(tr.querySelector('.qty-in').value) || 0) * (Number(tr.querySelector('.cost').value) || 0);
+      tr.querySelector('.sub').textContent = rp(sub); total += sub;
+    });
+    document.getElementById('grand').textContent = rp(total);
+  }
+  rows.addEventListener('change', (e) => {
+    if (e.target.classList.contains('prod')) { const o = e.target.selectedOptions[0]; e.target.closest('tr').querySelector('.cost').value = o.dataset.cost || 0; }
+    recalc();
+  });
+  rows.addEventListener('input', recalc);
+  rows.addEventListener('click', (e) => { const b = e.target.closest('.del'); if (b) { b.closest('tr').remove(); recalc(); } });
+  document.getElementById('addRow').addEventListener('click', () => addRow());
+  document.getElementById('fillSupplier').addEventListener('click', () => {
+    const sid = document.getElementById('supplier').value;
+    if (!sid) { alert('Pilih supplier terlebih dahulu.'); return; }
+    rows.innerHTML = '';
+    tpl.content.querySelectorAll('.prod option').forEach((o) => { if (o.dataset.supplier === sid) addRow(o.value, 10); });
+  });
+  addRow();
+</script>
+<%- include('../partials/foot') %>

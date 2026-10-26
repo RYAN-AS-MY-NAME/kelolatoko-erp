@@ -1,0 +1,30 @@
+<%- include('../partials/head') %>
+<form method="get" class="toolbar">
+  <div class="field"><label for="from">Dari</label><input id="from" type="date" name="from" value="<%= from %>"></div>
+  <div class="field"><label for="to">Sampai</label><input id="to" type="date" name="to" value="<%= to %>"></div>
+  <button class="btn btn-ghost">Tampilkan</button>
+  <span class="spacer"></span>
+  <button type="button" class="btn btn-ghost" data-print><%- icon('print') %>Cetak</button>
+</form>
+<div class="alert alert-info">Semua jurnal di bawah dibuat <strong>otomatis</strong> oleh sistem dari transaksi penjualan, pembelian, pembayaran, pengeluaran, gaji, dan penyesuaian stok. Tidak ada input jurnal manual, sehingga laporan keuangan selalu sinkron dengan operasional.</div>
+<div class="card">
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tanggal</th><th>Keterangan / Akun</th><th class="num">Debit</th><th class="num">Kredit</th></tr></thead>
+    <tbody>
+    <% if (!journals.length) { %><tr><td colspan="4" class="empty">Tidak ada jurnal pada periode ini.</td></tr><% } %>
+    <% journals.forEach(function (j) { %>
+      <tr style="background:var(--surface-2)"><td><%= tgl(j.date) %></td><td colspan="3" class="fw"><%= j.description %></td></tr>
+      <% j.lines.forEach(function (l) { %>
+        <tr>
+          <td></td>
+          <td style="<%= l.credit ? 'padding-left:40px' : '' %>"><small><%= l.account_code %></small> <%= l.account_name %></td>
+          <td class="num"><%= l.debit ? rp(l.debit) : '' %></td>
+          <td class="num"><%= l.credit ? rp(l.credit) : '' %></td>
+        </tr>
+      <% }) %>
+    <% }) %>
+    </tbody>
+  </table></div>
+</div>
+<% if (journals.length >= 300) { %><p class="muted">Menampilkan 300 jurnal terbaru. Persempit rentang tanggal untuk melihat lebih lengkap.</p><% } %>
+<%- include('../partials/foot') %>

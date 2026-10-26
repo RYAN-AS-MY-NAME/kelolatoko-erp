@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f5f9">
+  <title><%= title %> · KelolaToko</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'><path d='M12.6 10.2h8.8c2.3 0 3.7 1.4 4.1 3.6l1.6 10.6c.4 2.4-1.2 4.1-3.6 4.1H10.5c-2.4 0-4-1.7-3.6-4.1l1.6-10.6c.4-2.2 1.8-3.6 4.1-3.6z' fill='%231d5bd6'/><path d='M12 6.5c1.6 1.3 3.2 1.9 5 1.9s3.4-.6 5-1.9l-.9 4.1H12.9z' fill='%23133e94'/><rect x='11' y='16.4' width='12' height='6.2' rx='1.6' fill='white'/></svg>">
+  <link rel="preload" href="/vendor/font/files/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/vendor/font/index.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/app.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
+    <div class="brand">
+      <%- include('mark') %>
+      <div><strong>KelolaToko</strong><small>AMART</small></div>
+    </div>
+    <nav>
+      <% nav.forEach(function (g) { %>
+        <% if (g.group) { %><div class="nav-group"><%= g.group %></div><% } %>
+        <% g.items.forEach(function (it) { %>
+          <a href="<%= it.href %>" class="<%= isActive(it.href) ? 'active' : '' %>" <%- isActive(it.href) ? 'aria-current="page"' : '' %>><%- icon(it.icon) %><span><%= it.label %></span></a>
+        <% }) %>
+      <% }) %>
+    </nav>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn" type="button" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false"><%- icon('menu') %></button>
+      <div class="scope"><strong>AMART</strong><span class="date"> · <%= new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %></span></div>
+      <div class="user">
+        <span class="name"><%= user.name %></span>
+        <span class="badge badge-info"><%= ROLES[user.role] %></span>
+        <form method="post" action="/logout"><button class="btn btn-sm btn-ghost" title="Keluar"><%- icon('logout') %><span>Keluar</span></button></form>
+      </div>
+    </header>
+    <main class="sheet">
+    <div class="content">
+      <div class="title-row"><h1><%= title %></h1></div>
+      <% if (flash) { %><div class="alert alert-<%= flash.type %>" role="alert"><%= flash.msg %></div><% } %>

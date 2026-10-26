@@ -1,0 +1,63 @@
+<%- include('../partials/head') %>
+<%
+  function cell(c, r) {
+    const v = r[c.key];
+    switch (c.fmt) {
+      case 'rp': return rp(v);
+      case 'num': return num(v);
+      case 'pct': return v === null ? '-' : String(v).replace('.', ',') + '%';
+      case 'date': return tgl(v);
+      case 'role': return ROLES[v] || v;
+      default: return v === null || v === undefined || v === '' ? '-' : v;
+    }
+  }
+%>
+<div class="toolbar">
+  <input type="search" id="filter" placeholder="Cari <%= cfg.singular %>..." aria-label="Cari">
+  <span class="spacer"></span>
+  <a class="btn" href="/master/<%= entity %>/new"><%- icon('plus') %>Tambah <%= cfg.singular %></a>
+</div>
+<% if (cfg.intro) { %><div class="alert alert-info"><%= cfg.intro %></div><% } %>
+<div class="card">
+  <div class="table-wrap">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <% cfg.columns.forEach(function (c) { %><th class="<%= ['rp','num','pct'].includes(c.fmt) ? 'num' : '' %>"><%= c.label %></th><% }) %>
+          <th class="actions">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!rows.length) { %><tr><td colspan="<%= cfg.columns.length + 1 %>" class="empty">Belum ada data <%= cfg.singular %>.</td></tr><% } %>
+        <% rows.forEach(function (r) { %>
+        <tr>
+          <% cfg.columns.forEach(function (c) { %>
+            <td class="<%= ['rp','num','pct'].includes(c.fmt) ? 'num' : '' %>">
+              <% if (c.fmt === 'active') { %>
+                <span class="badge badge-<%= r.active ? 'success' : 'secondary' %>"><%= r.active ? 'Aktif' : 'Nonaktif' %></span>
+              <% } else if (c.link) { %>
+                <a href="<%= c.link(r) %>"><%= cell(c, r) %></a>
+              <% } else { %><%= cell(c, r) %><% } %>
+              <% if (c.unit) { %> <small><%= r[c.unit] %></small><% } %>
+              <% if (c.sub && r[c.sub]) { %><div class="cell-sub"><%= r[c.sub] %></div><% } %>
+            </td>
+          <% }) %>
+          <td class="actions">
+            <a class="btn btn-sm btn-ghost" href="/master/<%= entity %>/<%= r.id %>/edit"><%- icon('edit') %>Ubah</a>
+            <form class="inline" method="post" action="/master/<%= entity %>/<%= r.id %>/delete" data-confirm="Hapus data ini? Tindakan tidak dapat dibatalkan.">
+              <button class="btn btn-sm btn-ghost text-danger" title="Hapus"><%- icon('trash') %></button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+  document.getElementById('filter').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('#dataTable tbody tr').forEach((tr) => { tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+  });
+</script>
+<%- include('../partials/foot') %>

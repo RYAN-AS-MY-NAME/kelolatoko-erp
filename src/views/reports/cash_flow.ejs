@@ -1,0 +1,23 @@
+<%- include('../partials/head') %>
+<%- include('../partials/report_filter') %>
+<div class="card report">
+  <div class="report-head">
+    <h2>AMART</h2>
+    <div>Laporan Arus Kas</div>
+    <small>Periode <%= tgl(from) %> s/d <%= tgl(to) %></small>
+  </div>
+  <div class="card-body">
+    <table>
+      <tr class="section"><td>Saldo kas awal</td><td class="num"><%= rp(cf.opening) %></td></tr>
+      <tr class="section"><td colspan="2">Kas masuk</td></tr>
+      <% cf.rows.filter(r => r.inflow).sort((a, b) => b.inflow - a.inflow).forEach(function (r) { %><tr><td class="indent"><%= r.label %></td><td class="num text-success"><%= rp(r.inflow) %></td></tr><% }) %>
+      <tr class="total"><td>Total kas masuk</td><td class="num"><%= rp(cf.totalIn) %></td></tr>
+      <tr class="section"><td colspan="2">Kas keluar</td></tr>
+      <% cf.rows.filter(r => r.outflow).sort((a, b) => b.outflow - a.outflow).forEach(function (r) { %><tr><td class="indent"><%= r.label %></td><td class="num text-danger">(<%= rp(r.outflow) %>)</td></tr><% }) %>
+      <tr class="total"><td>Total kas keluar</td><td class="num">(<%= rp(cf.totalOut) %>)</td></tr>
+      <tr class="total"><td>Kenaikan (penurunan) kas</td><td class="num"><%= rp(cf.totalIn - cf.totalOut) %></td></tr>
+      <tr class="grand"><td>SALDO KAS AKHIR</td><td class="num"><%= rp(cf.closing) %></td></tr>
+    </table>
+  </div>
+</div>
+<%- include('../partials/foot') %>

@@ -1,0 +1,28 @@
+<%- include('../partials/head') %>
+<%- include('../partials/report_filter') %>
+<div class="card report">
+  <div class="report-head">
+    <h2>AMART</h2>
+    <div>Laporan Laba Rugi</div>
+    <small>Periode <%= tgl(from) %> s/d <%= tgl(to) %></small>
+  </div>
+  <div class="card-body">
+    <table>
+      <tr class="section"><td colspan="2">Pendapatan</td></tr>
+      <% pl.revenue.forEach(function (a) { %><tr><td class="indent"><%= a.name %></td><td class="num"><%= rp(a.balance) %></td></tr><% }) %>
+      <tr class="total"><td>Total pendapatan</td><td class="num"><%= rp(pl.totalRevenue) %></td></tr>
+
+      <tr class="section"><td colspan="2">Harga Pokok Penjualan</td></tr>
+      <% pl.hpp.forEach(function (a) { %><tr><td class="indent"><%= a.name %></td><td class="num">(<%= rp(a.balance) %>)</td></tr><% }) %>
+      <tr class="total"><td>Laba kotor <small class="muted">(margin <%= pl.totalRevenue ? (pl.grossProfit / pl.totalRevenue * 100).toFixed(1).replace('.', ',') : 0 %>%)</small></td><td class="num"><%= rp(pl.grossProfit) %></td></tr>
+
+      <tr class="section"><td colspan="2">Beban Operasional</td></tr>
+      <% pl.expenses.filter(a => a.balance).forEach(function (a) { %><tr><td class="indent"><%= a.name %></td><td class="num">(<%= rp(a.balance) %>)</td></tr><% }) %>
+      <tr class="total"><td>Total beban</td><td class="num">(<%= rp(pl.totalExpense) %>)</td></tr>
+
+      <tr class="grand"><td><%= pl.netProfit >= 0 ? 'LABA BERSIH' : 'RUGI BERSIH' %></td><td class="num <%= pl.netProfit >= 0 ? 'text-success' : 'text-danger' %>"><%= rp(pl.netProfit) %></td></tr>
+    </table>
+    <p class="muted" style="font-size:12px">Prive (uang yang diambil pemilik) bukan beban usaha sehingga tidak mengurangi laba; prive mengurangi modal di Neraca.</p>
+  </div>
+</div>
+<%- include('../partials/foot') %>
