@@ -1,5 +1,4 @@
 <%- include('../partials/head') %>
-<% const rem = s.total - s.paid; %>
 <% if (justCreated) { %><div class="alert alert-success no-print">Transaksi <strong><%= s.code %></strong> berhasil disimpan. <a href="/pos">Transaksi berikutnya →</a></div><% } %>
 <div class="toolbar">
   <a class="btn btn-ghost" href="/sales">← Riwayat penjualan</a>
@@ -32,15 +31,9 @@
         </table>
         <hr>
         <table>
-          <tr><td>Subtotal</td><td style="text-align:right"><%= num(s.subtotal) %></td></tr>
-          <% if (s.discount) { %><tr><td>Diskon</td><td style="text-align:right">-<%= num(s.discount) %></td></tr><% } %>
           <tr><td><strong>TOTAL</strong></td><td style="text-align:right"><strong><%= num(s.total) %></strong></td></tr>
-          <% if (s.payment_method === 'tunai') { %>
             <tr><td>Tunai</td><td style="text-align:right"><%= num(s.cash_received) %></td></tr>
             <tr><td>Kembali</td><td style="text-align:right"><%= num(s.cash_received - s.total) %></td></tr>
-          <% } else { %>
-            <tr><td>BON s/d</td><td style="text-align:right"><%= tgl(s.due_date) %></td></tr>
-          <% } %>
         </table>
         <hr>
         <div style="text-align:center"><% if (s.status === 'batal') { %><strong>*** DIBATALKAN ***</strong><br><% } %>Terima kasih atas kunjungan Anda</div>
@@ -52,44 +45,20 @@
     <div class="card no-print">
       <div class="card-header"><h2>Status</h2><span class="badge badge-<%= s.status === 'selesai' ? 'success' : 'danger' %>"><%= s.status === 'selesai' ? 'Selesai' : 'Dibatalkan' %></span></div>
       <ul class="list">
-        <li><span>Metode</span><strong><%= s.payment_method === 'tunai' ? 'Tunai' : 'Bon (kredit)' %></strong></li>
         <li><span>Total</span><strong><%= rp(s.total) %></strong></li>
         <% if (can('keuangan')) { %>
           <li><span>HPP (modal barang)</span><span><%= rp(s.cogs) %></span></li>
           <li><span>Laba kotor</span><strong class="text-success"><%= rp(s.total - s.cogs) %></strong></li>
         <% } %>
-        <% if (s.payment_method === 'kredit') { %>
-          <li><span>Sudah dibayar</span><span><%= rp(s.paid) %></span></li>
-          <li><span>Sisa bon</span><strong class="<%= rem > 0 ? 'text-danger' : 'text-success' %>"><%= rp(rem) %></strong></li>
-        <% } %>
         <% if (s.note) { %><li><span>Catatan</span><span><%= s.note %></span></li><% } %>
       </ul>
     </div>
-
-    <% if (s.status === 'selesai' && s.payment_method === 'kredit' && rem > 0) { %>
-    <div class="card no-print">
-      <div class="card-header"><h2>Terima pembayaran bon</h2></div>
-      <div class="card-body">
-        <form method="post" action="/sales/<%= s.id %>/pay" data-confirm="Catat pembayaran bon ini?">
-          <div class="field"><label for="amt">Jumlah (Rp)</label><input id="amt" type="number" name="amount" min="1" max="<%= rem %>" value="<%= rem %>"></div>
-          <div class="form-actions"><button class="btn">Terima pembayaran</button></div>
-        </form>
-      </div>
-    </div>
-    <% } %>
-
-    <% if (s.payments.length) { %>
-    <div class="card no-print">
-      <div class="card-header"><h2>Riwayat pembayaran</h2></div>
-      <ul class="list"><% s.payments.forEach(function (p) { %><li><span><%= tgl(p.date) %> · <%= p.user_name %></span><strong><%= rp(p.amount) %></strong></li><% }) %></ul>
-    </div>
-    <% } %>
 
     <% if (s.status === 'selesai' && user.role === 'owner') { %>
     <div class="card no-print">
       <div class="card-header"><h2>Batalkan transaksi</h2></div>
       <div class="card-body">
-        <form method="post" action="/sales/<%= s.id %>/void" data-confirm="Batalkan transaksi ini? Stok akan dikembalikan dan jurnal dibalik.">
+        <form method="post" action="/sales/<%= s.id %>/void" data-confirm="Batalkan transaksi ini? Stok dan uang akan dikembalikan.">
           <div class="field"><label for="reason">Alasan <span class="req">*</span></label><input id="reason" name="reason" placeholder="mis. salah input barang" required></div>
           <div class="form-actions"><button class="btn btn-danger">Batalkan transaksi</button></div>
         </form>

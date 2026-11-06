@@ -4,10 +4,7 @@
   <a class="btn btn-ghost" href="/purchases">← Daftar PO</a>
   <span class="spacer"></span>
   <button class="btn btn-ghost" data-print><%- icon('print') %>Cetak</button>
-  <% if (can('gudang') && po.status === 'draf') { %>
-    <form method="post" action="/purchases/<%= po.id %>/approve" class="inline"><button class="btn">Kirim ke supplier</button></form>
-  <% } %>
-  <% if (can('gudang') && (po.status === 'draf' || po.status === 'dipesan')) { %>
+  <% if (can('gudang') && po.status === 'dipesan') { %>
     <form method="post" action="/purchases/<%= po.id %>/cancel" class="inline" data-confirm="Batalkan PO ini?"><button class="btn btn-danger">Batalkan PO</button></form>
   <% } %>
 </div>

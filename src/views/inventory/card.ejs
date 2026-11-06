@@ -3,7 +3,6 @@
   <a class="btn btn-ghost" href="/inventory">← Stok barang</a>
   <span class="spacer"></span>
   <% if (can('gudang')) { %>
-    <a class="btn btn-ghost" href="/inventory/opname?product=<%= product.id %>"><%- icon('check') %>Opname produk ini</a>
     <a class="btn btn-ghost" href="/master/products/<%= product.id %>/edit"><%- icon('edit') %>Ubah produk</a>
   <% } %>
 </div>

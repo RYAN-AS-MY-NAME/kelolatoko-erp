@@ -5,30 +5,27 @@
   <button type="button" class="btn btn-ghost" data-print><%- icon('print') %>Cetak</button>
 </form>
 
-<div class="alert alert-info">Gaji = gaji pokok + (hari hadir × uang makan) − (hari alpa × gaji pokok/<%= WORK_DAYS %>). Data hadir diambil otomatis dari menu Absensi.</div>
+<div class="alert alert-info">Setiap karyawan menerima gaji pokok per bulan. Gaji pokok diubah di menu <a href="/master/employees">Karyawan</a>.</div>
 
 <div class="card">
   <div class="card-header"><h2>Daftar gaji <%= bulan(period) %></h2></div>
   <div class="table-wrap"><table>
-    <thead><tr><th>Karyawan</th><th class="num">Gaji pokok</th><th class="num">Hadir</th><th class="num">Uang makan</th><th class="num">Alpa</th><th class="num">Potongan</th><th class="num">Diterima</th><th>Status</th></tr></thead>
+    <thead><tr><th>Karyawan</th><th>Jabatan</th><th class="num">Gaji</th><th>Status</th></tr></thead>
     <tbody>
+    <% if (!rows.length) { %><tr><td colspan="4" class="empty">Belum ada karyawan aktif.</td></tr><% } %>
     <% rows.forEach(function (r) { %>
       <tr>
-        <td><strong><%= r.name %></strong><br><small><%= r.position %></small></td>
-        <td class="num"><%= rp(r.base_salary) %></td>
-        <td class="num"><%= r.hadir %></td>
-        <td class="num"><%= rp(r.allowance) %></td>
-        <td class="num"><%= r.alpa %></td>
-        <td class="num text-danger"><%= r.deduction ? '−' + rp(r.deduction) : '-' %></td>
-        <td class="num fw"><%= rp(r.payroll_id ? r.paid_net : r.net) %></td>
+        <td><strong><%= r.name %></strong></td>
+        <td><%= r.position %></td>
+        <td class="num fw"><%= rp(r.payroll_id ? r.paid_amount : r.base_salary) %></td>
         <td><% if (r.payroll_id) { %><span class="badge badge-success">Dibayar <%= tgl(r.paid_date) %></span><% } else { %><span class="badge badge-warning">Belum dibayar</span><% } %></td>
       </tr>
     <% }) %>
     </tbody>
   </table></div>
   <% if (unpaidTotal > 0) { %>
-  <div class="card-body no-print" style="border-top:1px solid var(--border)">
-    <form method="post" action="/hr/payroll" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end" data-confirm="Bayar gaji <%= bulan(period) %> sebesar <%= rp(unpaidTotal) %>? Saldo kas akan berkurang.">
+  <div class="card-body no-print" style="border-top:1px solid var(--rule);padding-top:var(--card-pad)">
+    <form method="post" action="/hr/payroll" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end" data-confirm="Bayar gaji <%= bulan(period) %> sebesar <%= rp(unpaidTotal) %>? Saldo kas akan berkurang.">
       <input type="hidden" name="period" value="<%= period %>">
       <div class="field"><label for="pdate">Tanggal bayar</label><input id="pdate" type="date" name="date" value="<%= today %>"></div>
       <button class="btn"><%- icon('cash') %>Bayar gaji (<%= rp(unpaidTotal) %>)</button>

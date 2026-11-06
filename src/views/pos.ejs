@@ -22,36 +22,23 @@
       </div>
       <div id="emptyCart" class="empty">Belum ada barang. Klik produk di sebelah kiri.</div>
 
-      <div class="field mt">
-        <label for="customer">Pelanggan</label>
-        <select id="customer">
-          <option value="">Umum (tanpa nama)</option>
-          <% customers.forEach(function (c) { %><option value="<%= c.id %>" data-limit="<%= c.credit_limit %>" data-debt="<%= c.debt %>"><%= c.name %></option><% }) %>
-        </select>
-        <span class="hint" id="custInfo"></span>
-      </div>
-
-      <div class="field mt">
-        <label>Metode pembayaran</label>
-        <div class="seg">
-          <label><input type="radio" name="method" value="tunai" checked><span>Tunai</span></label>
-          <label><input type="radio" name="method" value="kredit"><span>Bon (kredit)</span></label>
-        </div>
-      </div>
-
       <div class="form-grid mt" style="grid-template-columns:1fr 1fr">
-        <div class="field"><label for="discount">Diskon (Rp)</label><input id="discount" type="number" min="0" value="0"></div>
-        <div class="field" id="cashField"><label for="cash">Uang diterima (Rp)</label><input id="cash" type="number" min="0" placeholder="= total"></div>
+        <div class="field">
+          <label for="customer">Pelanggan <span class="muted" style="font-weight:400">(opsional)</span></label>
+          <select id="customer">
+            <option value="">Umum</option>
+            <% customers.forEach(function (c) { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+          </select>
+        </div>
+        <div class="field"><label for="cash">Uang diterima (Rp)</label><input id="cash" type="number" min="0" placeholder="= pas"></div>
       </div>
 
       <div class="totals">
-        <div><span>Subtotal</span><span id="subtotal">Rp 0</span></div>
-        <div><span>Diskon</span><span id="discView">Rp 0</span></div>
         <div class="grand"><span>Total</span><span id="total">Rp 0</span></div>
-        <div id="changeRow"><span>Kembalian</span><strong id="change">Rp 0</strong></div>
+        <div><span>Kembalian</span><strong id="change">Rp 0</strong></div>
       </div>
-      <button class="btn btn-lg btn-block mt" id="pay" type="button" disabled>Bayar &amp; simpan transaksi</button>
-      <p class="muted" style="font-size:12px;margin:8px 0 0">Stok berkurang otomatis (FEFO), kas/piutang dan jurnal tercatat otomatis. Barang kedaluwarsa tidak bisa dijual.</p>
+      <button class="btn btn-lg btn-block mt" id="pay" type="button" disabled>Bayar &amp; simpan</button>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Stok berkurang dan kas bertambah otomatis. Barang kedaluwarsa tidak bisa dijual.</p>
     </div>
   </div>
 </div>
@@ -93,11 +80,10 @@
     renderCart();
   }
 
-  function totals() {
-    let subtotal = 0;
-    cart.forEach((q, id) => { subtotal += q * byId(id).sell_price; });
-    const discount = Math.min(Math.max(Number($('discount').value) || 0, 0), subtotal);
-    return { subtotal, discount, total: subtotal - discount };
+  function total() {
+    let t = 0;
+    cart.forEach((q, id) => { t += q * byId(id).sell_price; });
+    return t;
   }
 
   function renderCart() {
@@ -105,7 +91,7 @@
     cart.forEach((q, id) => {
       const p = byId(id), tr = document.createElement('tr');
       tr.innerHTML = '<td><div class="fw name"></div><small class="price"></small></td>' +
-        '<td><div class="qty"><button type="button" data-d="-1">−</button><input type="number" min="0"><button type="button" data-d="1">+</button></div></td>' +
+        '<td><div class="qty"><button type="button" data-d="-1" aria-label="Kurangi">−</button><input type="number" min="0" aria-label="Jumlah"><button type="button" data-d="1" aria-label="Tambah">+</button></div></td>' +
         '<td class="num line"></td>';
       tr.querySelector('.name').textContent = p.name;
       tr.querySelector('.price').textContent = rp(p.sell_price) + ' / ' + p.unit;
@@ -116,18 +102,13 @@
       body.appendChild(tr);
     });
     $('emptyCart').style.display = cart.size ? 'none' : '';
-    const t = totals(), method = document.querySelector('input[name=method]:checked').value;
-    $('subtotal').textContent = rp(t.subtotal);
-    $('discView').textContent = '− ' + rp(t.discount);
-    $('total').textContent = rp(t.total);
-    const cash = $('cash').value === '' ? t.total : Number($('cash').value);
-    const change = cash - t.total;
-    $('change').textContent = rp(Math.max(change, 0));
+    const t = total();
+    $('total').textContent = rp(t);
+    const cash = $('cash').value === '' ? t : Number($('cash').value);
+    const change = cash - t;
+    $('change').textContent = change < 0 ? 'Uang kurang ' + rp(-change) : rp(change);
     $('change').className = change < 0 ? 'text-danger' : '';
-    $('cashField').style.display = $('changeRow').style.display = method === 'tunai' ? '' : 'none';
     $('pay').disabled = !cart.size;
-    const c = $('customer').selectedOptions[0];
-    $('custInfo').textContent = c.value ? 'Limit bon ' + rp(c.dataset.limit) + ' · bon berjalan ' + rp(c.dataset.debt) : '';
   }
 
   function showError(msg) { $('posError').textContent = msg; $('posError').style.display = ''; }
@@ -142,14 +123,10 @@
     const p = PRODUCTS.find((x) => x.sku.toLowerCase() === q) || PRODUCTS.filter((x) => x.name.toLowerCase().includes(q) && x.stock > 0)[0];
     if (p) { add(p.id); e.target.value = ''; renderGrid(); } else showError('Produk "' + e.target.value + '" tidak ditemukan.');
   });
-  ['discount', 'cash', 'customer'].forEach((id) => $(id).addEventListener('input', renderCart));
-  $('customer').addEventListener('change', renderCart);
-  document.querySelectorAll('input[name=method]').forEach((r) => r.addEventListener('change', renderCart));
-  $('clear').addEventListener('click', () => { cart.clear(); hideError(); renderCart(); });
+  $('cash').addEventListener('input', renderCart);
+  $('clear').addEventListener('click', () => { cart.clear(); $('cash').value = ''; hideError(); renderCart(); });
 
   $('pay').addEventListener('click', async () => {
-    const t = totals(), method = document.querySelector('input[name=method]:checked').value;
-    if (method === 'kredit' && !$('customer').value) { showError('Penjualan bon wajib memilih pelanggan.'); return; }
     $('pay').disabled = true; $('pay').textContent = 'Menyimpan...';
     try {
       const res = await fetch('/pos', {
@@ -158,8 +135,7 @@
         body: JSON.stringify({
           items: [...cart].map(([productId, qty]) => ({ productId, qty })),
           customerId: $('customer').value || null,
-          method, discount: t.discount,
-          cashReceived: method === 'tunai' && $('cash').value !== '' ? Number($('cash').value) : null,
+          cashReceived: $('cash').value !== '' ? Number($('cash').value) : null,
         }),
       });
       const data = await res.json().catch(() => ({ error: 'Respons server tidak valid.' }));
@@ -167,7 +143,7 @@
       window.location = '/sales/' + data.id + '?new=1';
     } catch (err) {
       showError(err.message === 'Failed to fetch' ? 'Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi.' : err.message);
-      $('pay').disabled = false; $('pay').textContent = 'Bayar & simpan transaksi';
+      $('pay').disabled = false; $('pay').textContent = 'Bayar & simpan';
     }
   });
 

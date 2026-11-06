@@ -22,7 +22,7 @@
 
       <tr class="grand"><td><%= pl.netProfit >= 0 ? 'LABA BERSIH' : 'RUGI BERSIH' %></td><td class="num <%= pl.netProfit >= 0 ? 'text-success' : 'text-danger' %>"><%= rp(pl.netProfit) %></td></tr>
     </table>
-    <p class="muted" style="font-size:12px">Prive (uang yang diambil pemilik) bukan beban usaha sehingga tidak mengurangi laba; prive mengurangi modal di Neraca.</p>
+    <p class="muted" style="font-size:12px">Prive (uang yang diambil pemilik) bukan beban usaha sehingga tidak mengurangi laba, tetapi tetap mengurangi kas (lihat Arus Kas).</p>
   </div>
 </div>
 <%- include('../partials/foot') %>

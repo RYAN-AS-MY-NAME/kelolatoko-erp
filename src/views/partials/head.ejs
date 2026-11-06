@@ -31,7 +31,7 @@
   <div class="main">
     <header class="topbar">
       <button class="menu-btn" id="menuBtn" type="button" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false"><%- icon('menu') %></button>
-      <div class="scope"><strong>AMART</strong><span class="date"> · <%= new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %></span></div>
+      <div class="scope"><strong>AMART</strong><span class="date"> · <%= new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %></span></div>
       <div class="user">
         <span class="name"><%= user.name %></span>
         <span class="badge badge-info"><%= ROLES[user.role] %></span>

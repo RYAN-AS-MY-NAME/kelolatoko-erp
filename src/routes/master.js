@@ -37,12 +37,6 @@ const ENTITIES = {
       { key: 'active', label: 'Status', fmt: 'active' },
     ],
   },
-  categories: {
-    title: 'Kategori Produk', singular: 'kategori', table: 'categories', roles: ['gudang'],
-    fields: [{ name: 'name', label: 'Nama kategori', required: true }],
-    listSql: 'SELECT c.*, (SELECT COUNT(*) FROM products p WHERE p.category_id=c.id) AS products FROM categories c ORDER BY c.name',
-    columns: [{ key: 'name', label: 'Nama kategori' }, { key: 'products', label: 'Jumlah produk', fmt: 'num' }],
-  },
   suppliers: {
     title: 'Supplier', singular: 'supplier', table: 'suppliers', roles: ['gudang', 'keuangan'],
     fields: [
@@ -61,20 +55,18 @@ const ENTITIES = {
   },
   customers: {
     title: 'Pelanggan', singular: 'pelanggan', table: 'customers', roles: ['kasir', 'keuangan'],
-    intro: 'Pelanggan tetap dan batas bon (kredit). Limit 0 berarti pelanggan hanya boleh membayar tunai.',
+    intro: 'Pelanggan tetap toko. Saat transaksi di kasir, pelanggan boleh dipilih agar total belanjanya tercatat.',
     fields: [
       { name: 'name', label: 'Nama pelanggan', required: true },
       { name: 'phone', label: 'No. telepon' },
       { name: 'address', label: 'Alamat', type: 'textarea' },
-      { name: 'credit_limit', label: 'Limit bon (Rp)', type: 'number', default: '0' },
     ],
     listSql: `SELECT c.*,
-                COALESCE((SELECT SUM(total-paid) FROM sales s WHERE s.customer_id=c.id AND s.status='selesai' AND s.payment_method='kredit'),0) AS debt,
                 COALESCE((SELECT SUM(total) FROM sales s WHERE s.customer_id=c.id AND s.status='selesai'),0) AS spent
               FROM customers c ORDER BY c.name`,
     columns: [
-      { key: 'name', label: 'Nama' }, { key: 'phone', label: 'Telepon' }, { key: 'credit_limit', label: 'Limit bon', fmt: 'rp' },
-      { key: 'debt', label: 'Bon berjalan', fmt: 'rp' }, { key: 'spent', label: 'Total belanja', fmt: 'rp' },
+      { key: 'name', label: 'Nama' }, { key: 'phone', label: 'Telepon' }, { key: 'address', label: 'Alamat' },
+      { key: 'spent', label: 'Total belanja', fmt: 'rp' },
     ],
   },
   employees: {
@@ -84,13 +76,12 @@ const ENTITIES = {
       { name: 'position', label: 'Jabatan', required: true },
       { name: 'phone', label: 'No. telepon' },
       { name: 'base_salary', label: 'Gaji pokok / bulan (Rp)', type: 'number', required: true },
-      { name: 'daily_allowance', label: 'Uang makan / hari hadir (Rp)', type: 'number', default: '0' },
       { name: 'join_date', label: 'Tanggal masuk', type: 'date' },
       { name: 'active', label: 'Status', type: 'select', options: ACTIVE, default: '1' },
     ],
     columns: [
       { key: 'name', label: 'Nama' }, { key: 'position', label: 'Jabatan' }, { key: 'phone', label: 'Telepon' },
-      { key: 'base_salary', label: 'Gaji pokok', fmt: 'rp' }, { key: 'daily_allowance', label: 'Uang makan/hari', fmt: 'rp' },
+      { key: 'base_salary', label: 'Gaji pokok', fmt: 'rp' },
       { key: 'join_date', label: 'Masuk', fmt: 'date' }, { key: 'active', label: 'Status', fmt: 'active' },
     ],
   },
@@ -122,9 +113,9 @@ const ENTITIES = {
   },
 };
 
-const optionsOf = (f) => (typeof f.options === 'function' ? f.options() : f.options || []);
+const optionsOf = async (f) => (typeof f.options === 'function' ? f.options() : f.options || []);
 
-function collect(cfg, body, isNew) {
+async function collect(cfg, body, isNew) {
   const data = {};
   for (const f of cfg.fields) {
     let v = String(body[f.name] ?? '').trim();
@@ -137,7 +128,7 @@ function collect(cfg, body, isNew) {
     if (f.type === 'number') v = toInt(v, f.label, { min: 0 });
     else if (f.type === 'date' && !isDate(v)) throw new AppError(`${f.label} tidak valid.`);
     else if (f.type === 'select') {
-      if (!optionsOf(f).some((o) => String(o.value) === v)) throw new AppError(`Pilihan ${f.label} tidak valid.`);
+      if (!(await optionsOf(f)).some((o) => String(o.value) === v)) throw new AppError(`Pilihan ${f.label} tidak valid.`);
       if (/^\d+$/.test(v)) v = Number(v);
     }
     data[f.name] = v;
@@ -160,75 +151,75 @@ router.param('entity', (req, res, next, entity) => {
   allow(...cfg.roles)(req, res, next);
 });
 
-function renderForm(res, req, values, error = null, status = 200) {
+async function renderForm(res, req, values, error = null, status = 200) {
   const cfg = req.cfg;
   res.status(status).render('master/form', {
     title: (req.params.id ? 'Ubah ' : 'Tambah ') + cfg.singular,
     cfg, entity: req.params.entity, id: req.params.id || null, values, error,
-    fields: cfg.fields.map((f) => ({ ...f, opts: optionsOf(f) })),
+    fields: await Promise.all(cfg.fields.map(async (f) => ({ ...f, opts: await optionsOf(f) }))),
   });
 }
 
-router.get('/:entity', (req, res) => {
+router.get('/:entity', async (req, res) => {
   const cfg = req.cfg;
-  const rows = all(cfg.listSql || `SELECT * FROM ${cfg.table} ORDER BY id DESC`);
+  const rows = await all(cfg.listSql || `SELECT * FROM ${cfg.table} ORDER BY id DESC`);
   res.render('master/index', { title: cfg.title, cfg, entity: req.params.entity, rows });
 });
 
-router.get('/:entity/new', (req, res) => {
+router.get('/:entity/new', async (req, res) => {
   const values = Object.fromEntries(req.cfg.fields.map((f) => [f.name, f.default ?? '']));
-  renderForm(res, req, values);
+  await renderForm(res, req, values);
 });
 
-router.post('/:entity', (req, res) => {
+router.post('/:entity', async (req, res) => {
   const cfg = req.cfg;
   try {
-    const data = collect(cfg, req.body, true);
+    const data = await collect(cfg, req.body, true);
     const cols = Object.keys(data);
-    const r = run(`INSERT INTO ${cfg.table}(${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, ...cols.map((c) => data[c]));
-    logActivity(req.session.user.id, `Tambah ${cfg.singular}`, data.name || data.username || `#${r.id}`);
+    const r = await run(`INSERT INTO ${cfg.table}(${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, ...cols.map((c) => data[c]));
+    await logActivity(req.session.user.id, `Tambah ${cfg.singular}`, data.name || data.username || `#${r.id}`);
     req.flash('success', `Data ${cfg.singular} berhasil ditambahkan.`);
     res.redirect(`/master/${req.params.entity}`);
   } catch (err) {
     const e = friendlyDbError(err);
     if (!e.expose) throw e;
-    renderForm(res, req, req.body, e.message, 400);
+    await renderForm(res, req, req.body, e.message, 400);
   }
 });
 
-router.get('/:entity/:id/edit', (req, res) => {
-  const row = get(`SELECT * FROM ${req.cfg.table} WHERE id=?`, req.params.id);
+router.get('/:entity/:id/edit', async (req, res) => {
+  const row = await get(`SELECT * FROM ${req.cfg.table} WHERE id=?`, req.params.id);
   if (!row) throw new AppError('Data tidak ditemukan.', 404);
-  renderForm(res, req, row);
+  await renderForm(res, req, row);
 });
 
-router.post('/:entity/:id', (req, res) => {
+router.post('/:entity/:id', async (req, res) => {
   const cfg = req.cfg;
   try {
-    if (!get(`SELECT id FROM ${cfg.table} WHERE id=?`, req.params.id)) throw new AppError('Data tidak ditemukan.', 404);
-    const data = collect(cfg, req.body, false);
+    if (!await get(`SELECT id FROM ${cfg.table} WHERE id=?`, req.params.id)) throw new AppError('Data tidak ditemukan.', 404);
+    const data = await collect(cfg, req.body, false);
     const cols = Object.keys(data);
-    run(`UPDATE ${cfg.table} SET ${cols.map((c) => `${c}=?`).join(',')} WHERE id=?`, ...cols.map((c) => data[c]), req.params.id);
-    logActivity(req.session.user.id, `Ubah ${cfg.singular}`, data.name || data.username || `#${req.params.id}`);
+    await run(`UPDATE ${cfg.table} SET ${cols.map((c) => `${c}=?`).join(',')} WHERE id=?`, ...cols.map((c) => data[c]), req.params.id);
+    await logActivity(req.session.user.id, `Ubah ${cfg.singular}`, data.name || data.username || `#${req.params.id}`);
     req.flash('success', `Data ${cfg.singular} berhasil diperbarui.`);
     res.redirect(`/master/${req.params.entity}`);
   } catch (err) {
     const e = friendlyDbError(err);
     if (!e.expose || e.status === 404) throw e;
-    renderForm(res, req, { ...req.body, id: req.params.id }, e.message, 400);
+    await renderForm(res, req, { ...req.body, id: req.params.id }, e.message, 400);
   }
 });
 
-router.post('/:entity/:id/delete', (req, res) => {
+router.post('/:entity/:id/delete', async (req, res) => {
   const cfg = req.cfg;
   cfg.beforeDelete?.(req.params.id, req);
   try {
-    const r = run(`DELETE FROM ${cfg.table} WHERE id=?`, req.params.id);
+    const r = await run(`DELETE FROM ${cfg.table} WHERE id=?`, req.params.id);
     if (!r.changes) throw new AppError('Data tidak ditemukan.', 404);
   } catch (err) {
     throw friendlyDbError(err);
   }
-  logActivity(req.session.user.id, `Hapus ${cfg.singular}`, `#${req.params.id}`);
+  await logActivity(req.session.user.id, `Hapus ${cfg.singular}`, `#${req.params.id}`);
   req.flash('success', `Data ${cfg.singular} berhasil dihapus.`);
   res.redirect(`/master/${req.params.entity}`);
 });

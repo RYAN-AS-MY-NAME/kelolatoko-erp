@@ -1,62 +1,102 @@
-// Koneksi database SQLite terpusat (modul bawaan Node.js: node:sqlite).
-const { DatabaseSync } = require('node:sqlite');
-const fs = require('fs');
-const path = require('path');
+// Koneksi database PostgreSQL (Supabase) terpusat.
+const { AsyncLocalStorage } = require('node:async_hooks');
+const { Pool, types } = require('pg');
+const { AppError } = require('./util');
 
-const DB_FILE = process.env.DB_FILE || path.join(__dirname, '..', 'data', 'erp.db');
-fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
+try { process.loadEnvFile(); } catch { /* tanpa file .env: pakai environment variable yang ada */ }
 
-const db = new DatabaseSync(DB_FILE);
-db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
-db.exec(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
-
-const cache = new Map();
-function stmt(sql) {
-  let s = cache.get(sql);
-  if (!s) { s = db.prepare(sql); cache.set(sql, s); }
-  return s;
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL belum diisi. Salin .env.example menjadi .env lalu isi connection string Supabase.');
 }
-const clean = (params) => params.map((p) => (p === undefined ? null : typeof p === 'boolean' ? (p ? 1 : 0) : p));
 
-const all = (sql, ...p) => stmt(sql).all(...clean(p));
-const get = (sql, ...p) => stmt(sql).get(...clean(p));
-const run = (sql, ...p) => {
-  const r = stmt(sql).run(...clean(p));
-  return { changes: Number(r.changes), id: Number(r.lastInsertRowid) };
+// BIGINT dan NUMERIC (hasil COUNT/SUM) dikirim pg sebagai string; ubah ke number
+// agar perhitungan di JavaScript tidak menjadi penggabungan teks.
+types.setTypeParser(types.builtins.INT8, Number);
+types.setTypeParser(types.builtins.NUMERIC, Number);
+
+// sslmode di URL menimpa opsi ssl dan membuat pg menolak sertifikat Supabase,
+// jadi dihapus dan koneksi TLS diatur di sini.
+function pgConfig(url) {
+  const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+  return {
+    connectionString: url.replace(/([?&])sslmode=[^&]*&?/, '$1').replace(/[?&]$/, ''),
+    ssl: local ? false : { rejectUnauthorized: false },
+  };
+}
+
+const pool = new Pool({
+  ...pgConfig(process.env.DATABASE_URL),
+  max: process.env.VERCEL ? 3 : 10,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 10000,
+});
+pool.on('error', (err) => console.error('Koneksi database terputus:', err.message));
+
+// Koneksi transaksi yang sedang berjalan pada request ini (bila ada).
+const txClient = new AsyncLocalStorage();
+
+// Kode tetap memakai placeholder "?"; diubah ke gaya Postgres ($1, $2, ...).
+const cache = new Map();
+function toPg(sql) {
+  let out = cache.get(sql);
+  if (!out) {
+    let i = 0;
+    out = sql.replace(/\?/g, () => `$${++i}`);
+    cache.set(sql, out);
+  }
+  return out;
+}
+
+async function query(sql, params) {
+  const values = params.map((p) => (p === undefined ? null : typeof p === 'boolean' ? (p ? 1 : 0) : p));
+  try {
+    return await (txClient.getStore() || pool).query(toPg(sql), values);
+  } catch (err) {
+    // Nilai bukan angka atau terlalu besar, misalnya URL /sales/abc
+    if (err.code === '22P02' || err.code === '22003') throw new AppError('Data tidak ditemukan.', 404);
+    throw err;
+  }
+}
+
+const all = async (sql, ...p) => (await query(sql, p)).rows;
+const get = async (sql, ...p) => (await query(sql, p)).rows[0];
+const run = async (sql, ...p) => {
+  const isInsert = /^\s*INSERT/i.test(sql) && !/RETURNING/i.test(sql);
+  const r = await query(isInsert ? `${sql} RETURNING id` : sql, p);
+  return { changes: r.rowCount, id: r.rows[0]?.id };
 };
 
 // Transaksi atomik: bila satu langkah gagal, seluruh perubahan dibatalkan.
 // Mendukung pemanggilan bersarang (service memanggil service lain).
-let depth = 0;
-function tx(fn) {
-  if (depth > 0) {
-    depth++;
-    try { return fn(); } finally { depth--; }
-  }
-  db.exec('BEGIN');
-  depth = 1;
+// Kunci advisory membuat transaksi berjalan satu per satu, sehingga pemeriksaan
+// stok, saldo kas, dan nomor dokumen aman saat dua kasir menyimpan bersamaan.
+async function tx(fn) {
+  if (txClient.getStore()) return fn();
+  const client = await pool.connect();
+  let failure;
   try {
-    const result = fn();
-    db.exec('COMMIT');
+    await client.query('BEGIN; SELECT pg_advisory_xact_lock(1)');
+    const result = await txClient.run(client, fn);
+    await client.query('COMMIT');
     return result;
   } catch (err) {
-    db.exec('ROLLBACK');
+    await client.query('ROLLBACK').catch((e) => { failure = e; });
     throw err;
   } finally {
-    depth = 0;
+    client.release(failure);
   }
 }
 
 // Nomor dokumen otomatis, contoh: PJ-20261026-004
-function nextCode(prefix, table, date) {
+async function nextCode(prefix, table, date) {
   const stamp = `${prefix}-${date.replaceAll('-', '')}-`;
-  const row = get(`SELECT code FROM ${table} WHERE code LIKE ? ORDER BY code DESC LIMIT 1`, stamp + '%');
+  const row = await get(`SELECT code FROM ${table} WHERE code LIKE ? ORDER BY code DESC LIMIT 1`, stamp + '%');
   const n = row ? Number(row.code.slice(stamp.length)) + 1 : 1;
   return stamp + String(n).padStart(3, '0');
 }
 
-function logActivity(userId, action, detail = null) {
-  run('INSERT INTO activity_logs(user_id, action, detail) VALUES (?,?,?)', userId, action, detail);
+async function logActivity(userId, action, detail = null) {
+  await run('INSERT INTO activity_logs(user_id, action, detail) VALUES (?,?,?)', userId, action, detail);
 }
 
-module.exports = { db, all, get, run, tx, nextCode, logActivity, DB_FILE };
+module.exports = { pool, pgConfig, all, get, run, tx, nextCode, logActivity };

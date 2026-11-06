@@ -2,9 +2,6 @@
 <form method="get" class="toolbar">
   <div class="field"><label for="from">Dari</label><input id="from" type="date" name="from" value="<%= from %>"></div>
   <div class="field"><label for="to">Sampai</label><input id="to" type="date" name="to" value="<%= to %>"></div>
-  <div class="field"><label for="method">Metode</label>
-    <select id="method" name="method"><option value="">Semua</option><option value="tunai" <%= method === 'tunai' ? 'selected' : '' %>>Tunai</option><option value="kredit" <%= method === 'kredit' ? 'selected' : '' %>>Bon (kredit)</option></select>
-  </div>
   <button class="btn btn-ghost">Tampilkan</button>
   <span class="spacer"></span>
   <% if (can('kasir')) { %><a class="btn" href="/pos"><%- icon('cart') %>Transaksi baru</a><% } %>
@@ -19,9 +16,9 @@
 
 <div class="card">
   <div class="table-wrap"><table>
-    <thead><tr><th>Nota</th><th>Tanggal</th><th>Pelanggan</th><th>Kasir</th><th class="num">Item</th><th class="num">Total</th><th>Metode</th><th>Status</th></tr></thead>
+    <thead><tr><th>Nota</th><th>Tanggal</th><th>Pelanggan</th><th>Kasir</th><th class="num">Item</th><th class="num">Total</th><th>Status</th></tr></thead>
     <tbody>
-    <% if (!rows.length) { %><tr><td colspan="8" class="empty">Tidak ada transaksi pada periode ini.</td></tr><% } %>
+    <% if (!rows.length) { %><tr><td colspan="7" class="empty">Tidak ada transaksi pada periode ini.</td></tr><% } %>
     <% rows.forEach(function (s) { %>
       <tr>
         <td><a href="/sales/<%= s.id %>"><%= s.code %></a></td>
@@ -30,7 +27,6 @@
         <td><%= s.cashier %></td>
         <td class="num"><%= s.items %></td>
         <td class="num"><%= rp(s.total) %></td>
-        <td><%= s.payment_method === 'tunai' ? 'Tunai' : 'Bon' %><% if (s.payment_method === 'kredit' && s.status === 'selesai') { %> <span class="badge badge-<%= s.paid >= s.total ? 'success' : 'warning' %>"><%= s.paid >= s.total ? 'Lunas' : 'Belum lunas' %></span><% } %></td>
         <td><span class="badge badge-<%= s.status === 'selesai' ? 'success' : 'danger' %>"><%= s.status === 'selesai' ? 'Selesai' : 'Batal' %></span></td>
       </tr>
     <% }) %>

@@ -17,7 +17,7 @@
   <input type="search" id="filter" placeholder="Cari produk / SKU..." aria-label="Cari produk">
   <span class="spacer"></span>
   <% if (can('gudang')) { %>
-  <form method="post" action="/purchases/reorder" class="inline" data-confirm="Buat PO draf otomatis untuk semua barang yang stoknya menipis?">
+  <form method="post" action="/purchases/reorder" class="inline" data-confirm="Buat PO otomatis untuk semua barang yang stoknya menipis?">
     <button class="btn"><%- icon('truck') %>Buat PO otomatis</button>
   </form>
   <% } %>

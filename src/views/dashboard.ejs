@@ -32,13 +32,13 @@
   <div class="kpi">
     <div class="label">Saldo kas</div>
     <div class="value"><%= rp(d.cash) %></div>
-    <div class="sub">piutang <%= rp(d.receivable) %></div>
+    <div class="sub">hutang supplier <%= rp(d.payable) %></div>
   </div>
   <% } %>
   <div class="kpi">
     <div class="label">Nilai persediaan</div>
     <div class="value"><%= rp(d.inventoryValue) %></div>
-    <div class="sub"><%= fin ? 'hutang supplier ' + rp(d.payable) : 'modal di stok' %></div>
+    <div class="sub">modal yang tertanam di stok</div>
   </div>
   <% if (!fin) { %>
   <div class="kpi <%= d.deadStockValue > 0 ? 'bad' : '' %>">
@@ -50,28 +50,12 @@
 </div>
 
 <% if (fin) { %>
-<div class="grid grid-side">
-  <div class="card">
-    <div class="card-header">
-      <div><h2>Penjualan harian, 14 hari terakhir</h2><div class="muted" style="font-size:13px;margin-top:2px">Hari ini <strong style="color:var(--text)"><%= rp(d.today.total) %></strong> dari <%= d.today.n %> transaksi</div></div>
-      <div class="legend" aria-hidden="true"><span><i style="background:#1d5bd6"></i>Laba kotor</span><span><i style="background:#c9d8f6"></i>Modal barang (HPP)</span></div>
-    </div>
-    <div class="card-body"><div class="chart-box"><canvas id="salesChart" role="img" aria-label="Grafik penjualan harian 14 hari terakhir, dibagi menjadi modal barang dan laba kotor"></canvas></div></div>
+<div class="card">
+  <div class="card-header">
+    <div><h2>Penjualan harian, 14 hari terakhir</h2><div class="muted" style="font-size:13px;margin-top:2px">Hari ini <strong style="color:var(--text)"><%= rp(d.today.total) %></strong> dari <%= d.today.n %> transaksi</div></div>
+    <div class="legend" aria-hidden="true"><span><i style="background:#1d5bd6"></i>Laba kotor</span><span><i style="background:#c9d8f6"></i>Modal barang (HPP)</span></div>
   </div>
-  <div class="card fill">
-    <div class="card-header"><h2>Uang keluar bulan ini</h2><a href="/reports/cash-flow" class="btn btn-sm btn-ghost">Arus kas</a></div>
-    <% if (!d.cashOut.length) { %><div class="empty">Belum ada uang keluar bulan ini.</div><% } else { %>
-    <ul class="list">
-      <% const maxOut = d.cashOut[0].outflow, totalOut = d.cashOut.reduce((s, r) => s + r.outflow, 0); d.cashOut.forEach(function (r) { %>
-      <li class="row-bar">
-        <div class="line"><span><%= r.label %></span><strong><%= rp(r.outflow) %></strong></div>
-        <div class="bar"><span style="width:<%= Math.max(Math.round(r.outflow / maxOut * 100), 1) %>%"></span></div>
-      </li>
-      <% }) %>
-      <li class="total"><span class="muted">Total uang keluar</span><strong><%= rp(totalOut) %></strong></li>
-    </ul>
-    <% } %>
-  </div>
+  <div class="card-body"><div class="chart-box"><canvas id="salesChart" role="img" aria-label="Grafik penjualan harian 14 hari terakhir, dibagi menjadi modal barang dan laba kotor"></canvas></div></div>
 </div>
 <% } %>
 
@@ -80,7 +64,7 @@
     <div class="card-header">
       <h2>Perlu dibeli ulang <span class="badge badge-warning"><%= d.lowStock.length %></span></h2>
       <% if (can('gudang')) { %>
-      <form method="post" action="/purchases/reorder" class="inline" data-confirm="Buat PO draf otomatis untuk semua barang yang stoknya menipis?">
+      <form method="post" action="/purchases/reorder" class="inline" data-confirm="Buat PO otomatis untuk semua barang yang stoknya menipis?">
         <button class="btn btn-sm"><%- icon('truck') %>Buat PO otomatis</button>
       </form>
       <% } %>
@@ -103,7 +87,7 @@
   </div>
 
   <div class="card">
-    <div class="card-header"><h2>Terlaris bulan ini</h2><% if (fin) { %><a href="/reports/sales" class="btn btn-sm btn-ghost">Laporan penjualan</a><% } %></div>
+    <div class="card-header"><h2>Terlaris bulan ini</h2><a href="/sales" class="btn btn-sm btn-ghost">Riwayat penjualan</a></div>
     <ul class="list">
       <% if (!d.topProducts.length) { %><li class="empty">Belum ada penjualan bulan ini.</li><% } %>
       <% const maxTop = d.topProducts[0] ? d.topProducts[0].omzet : 1; d.topProducts.forEach(function (p, i) { %>
@@ -118,7 +102,7 @@
 
 <div class="grid grid-2">
   <div class="card">
-    <div class="card-header"><h2>Stok mati (modal tertahan)</h2><a href="/reports/inventory" class="btn btn-sm btn-ghost">Analisis stok</a></div>
+    <div class="card-header"><h2>Stok mati (modal tertahan)</h2><a href="/inventory?status=mati" class="btn btn-sm btn-ghost">Lihat di stok</a></div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Produk</th><th class="num">Stok</th><th class="num">Nilai</th><th class="num">Terakhir laku</th></tr></thead>
@@ -171,18 +155,19 @@
     </table></div>
     <% if (d.payablesDue.length > LIMIT) { %><a class="more" href="/finance/payables">Lihat semua <%= d.payablesDue.length %> hutang</a><% } %>
   </div>
-  <div class="card">
-    <div class="card-header"><h2>Bon pelanggan jatuh tempo ≤ 7 hari</h2><a href="/finance/receivables" class="btn btn-sm btn-ghost">Semua piutang</a></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Nota</th><th>Pelanggan</th><th>Jatuh tempo</th><th class="num">Sisa</th></tr></thead>
-      <tbody>
-      <% if (!d.receivablesDue.length) { %><tr><td colspan="4" class="empty">Tidak ada bon yang jatuh tempo minggu ini.</td></tr><% } %>
-      <% d.receivablesDue.slice(0, LIMIT).forEach(function (s) { %>
-        <tr><td><a href="/sales/<%= s.id %>"><%= s.code %></a></td><td><%= s.customer %></td><td class="nw"><%= tgl(s.due_date) %><% if (s.due_date < today) { %> <span class="badge badge-danger">Terlambat</span><% } %></td><td class="num"><%= rp(s.remaining) %></td></tr>
+  <div class="card fill">
+    <div class="card-header"><h2>Uang keluar bulan ini</h2><a href="/reports/cash-flow" class="btn btn-sm btn-ghost">Arus kas</a></div>
+    <% if (!d.cashOut.length) { %><div class="empty">Belum ada uang keluar bulan ini.</div><% } else { %>
+    <ul class="list">
+      <% const maxOut = d.cashOut[0].outflow, totalOut = d.cashOut.reduce((s, r) => s + r.outflow, 0); d.cashOut.forEach(function (r) { %>
+      <li class="row-bar">
+        <div class="line"><span><%= r.label %></span><strong><%= rp(r.outflow) %></strong></div>
+        <div class="bar"><span style="width:<%= Math.max(Math.round(r.outflow / maxOut * 100), 1) %>%"></span></div>
+      </li>
       <% }) %>
-      </tbody>
-    </table></div>
-    <% if (d.receivablesDue.length > LIMIT) { %><a class="more" href="/finance/receivables">Lihat semua <%= d.receivablesDue.length %> bon</a><% } %>
+      <li class="total"><span class="muted">Total uang keluar</span><strong><%= rp(totalOut) %></strong></li>
+    </ul>
+    <% } %>
   </div>
 </div>
 
